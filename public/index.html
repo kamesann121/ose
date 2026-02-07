@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Research Initiative</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+        }
+
+        /* 偽装サイト */
+        .fake-site {
+            display: block;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px 40px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 300;
+        }
+
+        .content {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        .article {
+            background: white;
+            padding: 30px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .article h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .article p {
+            line-height: 1.6;
+            color: #555;
+        }
+
+        /* ロビー画面 */
+        .lobby {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            z-index: 1000;
+        }
+
+        .lobby.active {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .lobby-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 60px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 500px;
+        }
+
+        .lobby-title {
+            font-size: 48px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .lobby-subtitle {
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 14px;
+        }
+
+        .matchmaking-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 20px 60px;
+            font-size: 24px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: bold;
+            margin-bottom: 30px;
+        }
+
+        .matchmaking-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+
+        .matchmaking-btn:active {
+            transform: translateY(0);
+        }
+
+        .matchmaking-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .status {
+            color: #666;
+            font-size: 16px;
+            margin-top: 20px;
+            min-height: 24px;
+        }
+
+        .decoration {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .deco-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .deco-circle:nth-child(1) {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            animation-delay: 0s;
+        }
+
+        .deco-circle:nth-child(2) {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            animation-delay: 0.5s;
+        }
+
+        .deco-circle:nth-child(3) {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            animation-delay: 1s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-20px);
+            }
+        }
+
+        /* アニメーション効果 */
+        .searching {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        /* ゲーム画面 */
+        .game-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #1a1a2e;
+        }
+
+        #gameCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .game-ui {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            min-width: 200px;
+            z-index: 10;
+        }
+
+        .timer-section, .turn-section, .score-section, .turn-timer-section {
+            margin-bottom: 20px;
+        }
+
+        .timer-label, .turn-label, .score-label, .turn-timer-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .timer {
+            font-size: 36px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .turn-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .turn-stone {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid #2c3e50;
+        }
+
+        .turn-stone.black {
+            background: #2c3e50;
+        }
+
+        .score-section {
+            display: flex;
+            gap: 20px;
+        }
+
+        .score-item {
+            flex: 1;
+        }
+
+        .score-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .turn-timer-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .turn-timer-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4caf50, #8bc34a);
+            transition: width 0.1s linear;
+            width: 100%;
+        }
+
+        .surrender-btn {
+            width: 100%;
+            padding: 12px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .surrender-btn:hover {
+            background: #c0392b;
+        }
+
+        .charge-meter {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 30px;
+            border-radius: 10px;
+            display: none;
+            z-index: 10;
+        }
+
+        .charge-meter.active {
+            display: block;
+        }
+
+        .charge-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+
+        .charge-bar {
+            width: 200px;
+            height: 20px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .charge-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f093fb, #f5576c);
+            width: 0%;
+            transition: width 0.05s linear;
+        }
+
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 14px;
+            color: #2c3e50;
+            z-index: 10;
+        }
+
+        .instructions div {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- 偽装サイト -->
+    <div class="fake-site" id="fakeSite">
+        <div class="header">
+            <h1>Global Research Initiative</h1>
+        </div>
+        <div class="content">
+            <div class="article">
+                <h2>Annual Conference on Climate Studies</h2>
+                <p>The 15th Annual Conference on Climate Studies will be held in Geneva this September. Leading researchers from around the world will present their latest findings on climate change patterns and environmental sustainability initiatives.</p>
+            </div>
+            <div class="article">
+                <h2>New Research Partnership Announced</h2>
+                <p>We are pleased to announce a new collaborative research partnership with international institutions focusing on renewable energy solutions. This initiative aims to accelerate the development of sustainable technologies for future generations.</p>
+            </div>
+            <div class="article">
+                <h2>Publication: Journal of Advanced Studies</h2>
+                <p>The latest edition of our quarterly journal features groundbreaking research in biotechnology, materials science, and computational methods. Access is available to all registered members through the online portal.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ロビー画面 -->
+    <div class="lobby" id="lobby">
+        <div class="lobby-container">
+            <div class="lobby-title">REVERSI</div>
+            <div class="lobby-subtitle">Online Multiplayer</div>
+            <button class="matchmaking-btn" id="matchBtn">FIND MATCH</button>
+            <div class="status" id="status"></div>
+            <div class="decoration">
+                <div class="deco-circle"></div>
+                <div class="deco-circle"></div>
+                <div class="deco-circle"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ゲーム画面 -->
+    <div class="game-container" id="gameContainer" style="display: none;">
+        <div class="game-ui">
+            <div class="timer-section">
+                <div class="timer-label">Time Remaining</div>
+                <div class="timer" id="gameTimer">3:00</div>
+            </div>
+            <div class="turn-section">
+                <div class="turn-label">Current Turn</div>
+                <div class="turn-indicator" id="turnIndicator">
+                    <div class="turn-stone"></div>
+                </div>
+            </div>
+            <div class="score-section">
+                <div class="score-item">
+                    <div class="score-label">White</div>
+                    <div class="score-value" id="whiteScore">2</div>
+                </div>
+                <div class="score-item">
+                    <div class="score-label">Black</div>
+                    <div class="score-value" id="blackScore">2</div>
+                </div>
+            </div>
+            <div class="turn-timer-section">
+                <div class="turn-timer-label">Turn Time</div>
+                <div class="turn-timer-bar">
+                    <div class="turn-timer-fill" id="turnTimerFill"></div>
+                </div>
+            </div>
+            <button class="surrender-btn" id="surrenderBtn">Give Up</button>
+        </div>
+        <div class="charge-meter" id="chargeMeter">
+            <div class="charge-label">CHARGE</div>
+            <div class="charge-bar">
+                <div class="charge-fill" id="chargeFill"></div>
+            </div>
+        </div>
+        <div class="instructions">
+            <div>CLICK: Place stone</div>
+            <div>HOLD: Charge power</div>
+            <div>SPACE: Lock/Unlock stone</div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
+    <script src="main.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
