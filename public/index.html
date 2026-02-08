@@ -2,21 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Global Research Initiative</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #f5f5f5;
+            overflow: hidden;
+            touch-action: none;
         }
 
-        /* 偽装サイト */
         .fake-site {
             display: block;
         }
@@ -56,7 +58,6 @@
             color: #555;
         }
 
-        /* ロビー画面 */
         .lobby {
             display: none;
             position: fixed;
@@ -171,7 +172,6 @@
             }
         }
 
-        /* アニメーション効果 */
         .searching {
             animation: pulse 1.5s ease-in-out infinite;
         }
@@ -185,7 +185,6 @@
             }
         }
 
-        /* ゲーム画面 */
         .game-container {
             position: fixed;
             top: 0;
@@ -193,12 +192,14 @@
             width: 100%;
             height: 100%;
             background: #1a1a2e;
+            display: none;
         }
 
         #gameCanvas {
             width: 100%;
             height: 100%;
             display: block;
+            touch-action: none;
         }
 
         .game-ui {
@@ -345,6 +346,7 @@
             font-size: 14px;
             color: #2c3e50;
             z-index: 10;
+            text-align: center;
         }
 
         .instructions div {
@@ -353,7 +355,6 @@
     </style>
 </head>
 <body>
-    <!-- 偽装サイト -->
     <div class="fake-site" id="fakeSite">
         <div class="header">
             <h1>Global Research Initiative</h1>
@@ -374,7 +375,6 @@
         </div>
     </div>
 
-    <!-- ロビー画面 -->
     <div class="lobby" id="lobby">
         <div class="lobby-container">
             <div class="lobby-title">REVERSI</div>
@@ -389,8 +389,7 @@
         </div>
     </div>
 
-    <!-- ゲーム画面 -->
-    <div class="game-container" id="gameContainer" style="display: none;">
+    <div class="game-container" id="gameContainer">
         <div class="game-ui">
             <div class="timer-section">
                 <div class="timer-label">Time Remaining</div>
@@ -427,19 +426,16 @@
             </div>
         </div>
         <div class="instructions">
-            <div>CLICK: Place stone</div>
+            <div>TAP: Place stone</div>
             <div>HOLD: Charge power</div>
-            <div>SPACE: Lock/Unlock stone</div>
         </div>
         <canvas id="gameCanvas"></canvas>
     </div>
 
-   <script src="/socket.io/socket.io.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/cannon@0.6.2/build/cannon.min.js"></script>
     <script src="main.js"></script>
     <script src="board.js"></script>
-</body>
-</html>
 </body>
 </html>
