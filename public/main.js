@@ -60,9 +60,13 @@ socket.on('matchFound', (data) => {
     statusDiv.classList.remove('searching');
     statusDiv.textContent = 'Match found! Loading...';
     
+    // マッチ情報を保存
+    localStorage.setItem('currentMatch', JSON.stringify(data));
+    
     // ゲーム画面に遷移
     setTimeout(() => {
         hideLobby();
+        fakeSite.style.display = 'none';
         startGame(data);
     }, 1000);
 });
@@ -74,9 +78,16 @@ socket.on('opponentDisconnected', () => {
 
 // ゲーム開始
 function startGame(matchData) {
-    // game.jsで処理
+    console.log('Starting game...', matchData);
+    
+    // ゲーム画面を表示
+    document.getElementById('gameContainer').style.display = 'block';
+    
+    // board.jsで処理
     if (window.initGame) {
         window.initGame(matchData, socket, playerColor);
+    } else {
+        console.error('initGame function not found!');
     }
 }
 
