@@ -26,6 +26,12 @@ function showLobby() {
     fakeSite.style.display = 'none';
     lobby.classList.add('active');
     currentState = 'lobby';
+    
+    // ロビーに戻ったら試合情報をクリア
+    localStorage.removeItem('currentMatch');
+    matchBtn.disabled = false;
+    statusDiv.textContent = '';
+    statusDiv.classList.remove('searching');
 }
 
 function hideLobby() {
@@ -63,7 +69,7 @@ socket.on('matchFound', (data) => {
 
 socket.on('opponentDisconnected', () => {
     alert('Opponent disconnected. Returning to lobby...');
-    location.reload();
+    returnToLobby();
 });
 
 // ゲーム開始
@@ -74,22 +80,28 @@ function startGame(matchData) {
     }
 }
 
-// ページリロード時に試合を復元
+// ロビーに戻る処理
+function returnToLobby() {
+    localStorage.removeItem('currentMatch');
+    document.getElementById('gameContainer').style.display = 'none';
+    fakeSite.style.display = 'none';
+    lobby.classList.add('active');
+    currentState = 'lobby';
+    matchBtn.disabled = false;
+    statusDiv.textContent = '';
+    statusDiv.classList.remove('searching');
+    
+    // ページをリロードしてクリーンな状態に
+    setTimeout(() => {
+        location.reload();
+    }, 100);
+}
+
+// この関数をグローバルに公開（board.jsから呼べるように）
+window.returnToLobby = returnToLobby;
+
+// ページロード時の処理
 window.addEventListener('load', () => {
-    const savedMatch = localStorage.getItem('currentMatch');
-    if (savedMatch) {
-        const matchData = JSON.parse(savedMatch);
-        currentMatch = matchData.matchId;
-        playerColor = matchData.playerColor;
-        currentState = 'playing';
-        
-        // ゲームを復元
-        setTimeout(() => {
-            hideLobby();
-            fakeSite.style.display = 'none';
-            if (window.initGame) {
-                window.initGame(matchData, socket, playerColor);
-            }
-        }, 100);
-    }
+    // 古い試合情報は削除
+    localStorage.removeItem('currentMatch');
 });
