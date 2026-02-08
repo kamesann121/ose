@@ -1,8 +1,10 @@
+console.log('board.js loaded');
+
 // グローバル変数
 let scene, camera, renderer, world;
 let board, stones = [];
-let hoverStone = null;  // マウスで動かす石
-let isPlacing = false;  // 配置モード
+let hoverStone = null;
+let isPlacing = false;
 let isCharging = false;
 let chargeLevel = 0;
 let chargeStartTime = 0;
@@ -19,12 +21,14 @@ const BOARD_SIZE = 8;
 const CELL_SIZE = 1;
 const STONE_RADIUS = 0.4;
 const STONE_HEIGHT = 0.2;
-const MAX_CHARGE_TIME = 2000; // 2秒
+const MAX_CHARGE_TIME = 2000;
 const CHARGE_FORCE_MULTIPLIER = 15;
-const HOVER_HEIGHT = 0.5; // 構えてる時の高さ
+const HOVER_HEIGHT = 0.5;
 
 // ゲーム初期化
 window.initGame = function(matchData, socket, playerColor) {
+    console.log('initGame called', matchData, playerColor);
+    
     mySocket = socket;
     myColor = playerColor;
     currentGameState = matchData.gameState;
@@ -38,40 +42,53 @@ window.initGame = function(matchData, socket, playerColor) {
     // マッチ情報を保存
     localStorage.setItem('currentMatch', JSON.stringify(matchData));
 
-    // 3Dシーンの初期化
-    initThreeJS();
-    initCannon();
-    createBoard();
-    createInitialStones();
+    try {
+        // 3Dシーンの初期化
+        initThreeJS();
+        initCannon();
+        createBoard();
+        createInitialStones();
 
-    // UIの初期化
-    updateUI();
+        // UIの初期化
+        updateUI();
 
-    // イベントリスナー
-    setupEventListeners();
+        // イベントリスナー
+        setupEventListeners();
 
-    // アニメーションループ
-    animate();
+        // アニメーションループ
+        animate();
 
-    // タイマー更新
-    setInterval(updateTimers, 100);
+        // タイマー更新
+        setInterval(updateTimers, 100);
 
-    // Socket.ioイベント
-    setupSocketListeners();
+        // Socket.ioイベント
+        setupSocketListeners();
+        
+        console.log('Game initialized successfully');
+    } catch (error) {
+        console.error('Error initializing game:', error);
+    }
 };
 
 function initThreeJS() {
+    console.log('Initializing Three.js');
+    
+    if (typeof THREE === 'undefined') {
+        console.error('THREE is not loaded!');
+        return;
+    }
+    
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x1a1a2e);
 
-    // カメラ（真上より、近づける）
+    // カメラ
     camera = new THREE.PerspectiveCamera(
         50,
         window.innerWidth / window.innerHeight,
         0.1,
         1000
     );
-    camera.position.set(0, 10, 3);  // より近く、より上から
+    camera.position.set(0, 10, 3);
     camera.lookAt(0, 0, 0);
 
     // レンダラー
@@ -101,16 +118,29 @@ function initThreeJS() {
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
     });
+    
+    console.log('Three.js initialized');
 }
 
 function initCannon() {
+    console.log('Initializing Cannon.js');
+    
+    if (typeof CANNON === 'undefined') {
+        console.error('CANNON is not loaded!');
+        return;
+    }
+    
     world = new CANNON.World();
     world.gravity.set(0, -20, 0);
     world.broadphase = new CANNON.NaiveBroadphase();
     world.solver.iterations = 10;
+    
+    console.log('Cannon.js initialized');
 }
 
 function createBoard() {
+    console.log('Creating board');
+    
     // 盤面
     const boardGeometry = new THREE.BoxGeometry(BOARD_SIZE, 0.2, BOARD_SIZE);
     const boardMaterial = new THREE.MeshStandardMaterial({ 
@@ -150,9 +180,13 @@ function createBoard() {
     boardBody.addShape(boardShape);
     boardBody.position.y = -0.1;
     world.addBody(boardBody);
+    
+    console.log('Board created');
 }
 
 function createInitialStones() {
+    console.log('Creating initial stones');
+    
     // 初期配置の石を作成
     const initialPositions = [
         { x: 3, z: 3, color: 'white' },
@@ -164,6 +198,8 @@ function createInitialStones() {
     initialPositions.forEach(pos => {
         createStone(pos.x, pos.z, pos.color, false);
     });
+    
+    console.log('Initial stones created:', stones.length);
 }
 
 function createStone(gridX, gridZ, color, withPhysics = true) {
@@ -237,17 +273,19 @@ function removeHoverStone() {
 }
 
 function setupEventListeners() {
+    console.log('Setting up event listeners');
+    
     const canvas = document.getElementById('gameCanvas');
 
-    // マウス移動 - 石を構える
-    canvas.addEventListener('mousemove', (e) => {
+    // マウス/タッチ移動 - 石を構える
+    function handleMove(clientX, clientY) {
         if (!isMyTurn()) {
             removeHoverStone();
             return;
         }
 
-        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        mouse.x = (clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(clientY / window.innerHeight) * 2 + 1;
 
         raycaster.setFromCamera(mouse, camera);
         const intersects = raycaster.intersectObject(board);
@@ -257,29 +295,27 @@ function setupEventListeners() {
             const point = intersects[0].point;
             
             if (isPlacing) {
-                // Spaceで密接モード
                 hoverStone.position.set(point.x, STONE_HEIGHT/2, point.z);
             } else {
-                // 通常は浮いてる
                 hoverStone.position.set(point.x, HOVER_HEIGHT, point.z);
             }
         } else {
             removeHoverStone();
         }
-    });
+    }
 
-    // マウスダウン - チャージ開始
-    canvas.addEventListener('mousedown', (e) => {
+    // マウス/タッチ開始 - チャージ開始
+    function handleStart(clientX, clientY) {
         if (!isMyTurn() || !hoverStone) return;
 
         isCharging = true;
         chargeStartTime = Date.now();
         chargeLevel = 0;
         document.getElementById('chargeMeter').classList.add('active');
-    });
+    }
 
-    // マウスアップ - 石を配置
-    canvas.addEventListener('mouseup', (e) => {
+    // マウス/タッチ終了 - 石を配置
+    function handleEnd(clientX, clientY) {
         if (!isMyTurn() || !isCharging || !hoverStone) return;
 
         isCharging = false;
@@ -295,7 +331,42 @@ function setupEventListeners() {
 
         chargeLevel = 0;
         document.getElementById('chargeFill').style.width = '0%';
+    }
+
+    // マウスイベント
+    canvas.addEventListener('mousemove', (e) => {
+        handleMove(e.clientX, e.clientY);
     });
+
+    canvas.addEventListener('mousedown', (e) => {
+        handleStart(e.clientX, e.clientY);
+    });
+
+    canvas.addEventListener('mouseup', (e) => {
+        handleEnd(e.clientX, e.clientY);
+    });
+
+    // タッチイベント（スマホ対応）
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        handleMove(touch.clientX, touch.clientY);
+    }, { passive: false });
+
+    canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        handleMove(touch.clientX, touch.clientY);
+        handleStart(touch.clientX, touch.clientY);
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        if (e.changedTouches.length > 0) {
+            const touch = e.changedTouches[0];
+            handleEnd(touch.clientX, touch.clientY);
+        }
+    }, { passive: false });
 
     // スペースキー - 密接モード切り替え
     document.addEventListener('keydown', (e) => {
@@ -306,14 +377,23 @@ function setupEventListeners() {
     });
 
     // 降参ボタン
-    document.getElementById('surrenderBtn').addEventListener('click', () => {
-        if (confirm('Are you sure you want to give up?')) {
-            mySocket.emit('surrender', { matchId: currentGameState.matchId });
-        }
-    });
+    const surrenderBtn = document.getElementById('surrenderBtn');
+    if (surrenderBtn) {
+        surrenderBtn.addEventListener('click', () => {
+            console.log('Surrender button clicked');
+            if (confirm('Are you sure you want to give up?')) {
+                console.log('Sending surrender event');
+                mySocket.emit('surrender', { matchId: currentGameState.matchId });
+            }
+        });
+    }
+    
+    console.log('Event listeners set up');
 }
 
 function placeStone(gridX, gridZ, charge) {
+    console.log('Placing stone at', gridX, gridZ, 'with charge', charge);
+    
     const worldX = gridX - BOARD_SIZE/2 + 0.5;
     const worldZ = gridZ - BOARD_SIZE/2 + 0.5;
     
@@ -388,6 +468,8 @@ function placeStone(gridX, gridZ, charge) {
 }
 
 function setupSocketListeners() {
+    console.log('Setting up socket listeners');
+    
     // ゲーム状態更新
     mySocket.on('gameUpdate', (gameState) => {
         currentGameState = gameState;
@@ -397,6 +479,7 @@ function setupSocketListeners() {
 
     // 相手が石を配置
     mySocket.on('opponentPlaced', (data) => {
+        console.log('Opponent placed stone', data);
         const stone = createStone(data.stone.gridX, data.stone.gridZ, data.stone.color, true);
         stone.id = data.stone.id;
         
@@ -445,6 +528,7 @@ function setupSocketListeners() {
 
     // 試合終了
     mySocket.on('gameOver', (data) => {
+        console.log('Game over', data);
         gameActive = false;
         const won = data.winner === mySocket.id;
         
@@ -463,6 +547,7 @@ function setupSocketListeners() {
 
     // 相手切断
     mySocket.on('opponentDisconnected', () => {
+        console.log('Opponent disconnected');
         gameActive = false;
         
         setTimeout(() => {
@@ -479,15 +564,6 @@ function setupSocketListeners() {
     });
 }
 
-    // 相手切断
-    mySocket.on('opponentDisconnected', () => {
-        gameActive = false;
-        alert('Opponent disconnected.');
-        localStorage.removeItem('currentMatch');
-        location.reload();
-    });
-}
-
 function isMyTurn() {
     if (!currentGameState) return false;
     return currentGameState.currentTurn === mySocket.id;
@@ -496,23 +572,27 @@ function isMyTurn() {
 function updateUI() {
     // ターン表示
     const turnStone = document.querySelector('.turn-stone');
-    const isMyTurnNow = isMyTurn();
-    turnStone.className = 'turn-stone ' + (isMyTurnNow ? myColor : (myColor === 'white' ? 'black' : ''));
+    if (turnStone) {
+        const isMyTurnNow = isMyTurn();
+        turnStone.className = 'turn-stone ' + (isMyTurnNow ? myColor : (myColor === 'white' ? 'black' : ''));
+    }
 
     // スコア計算
     let whiteCount = 0;
     let blackCount = 0;
     
     stones.forEach(stone => {
-        // 盤面上にある石のみカウント（Y座標が-1より上）
         if (stone.body.position.y > -1) {
             if (stone.color === 'white') whiteCount++;
             else blackCount++;
         }
     });
 
-    document.getElementById('whiteScore').textContent = whiteCount;
-    document.getElementById('blackScore').textContent = blackCount;
+    const whiteScoreEl = document.getElementById('whiteScore');
+    const blackScoreEl = document.getElementById('blackScore');
+    
+    if (whiteScoreEl) whiteScoreEl.textContent = whiteCount;
+    if (blackScoreEl) blackScoreEl.textContent = blackCount;
 }
 
 function updateTimers() {
@@ -523,14 +603,16 @@ function updateTimers() {
     const gameRemaining = Math.max(0, 180000 - gameElapsed);
     const minutes = Math.floor(gameRemaining / 60000);
     const seconds = Math.floor((gameRemaining % 60000) / 1000);
-    document.getElementById('gameTimer').textContent = 
-        `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    
+    const timerEl = document.getElementById('gameTimer');
+    if (timerEl) {
+        timerEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
 
     // ゲーム終了チェック
     if (gameRemaining === 0 && gameActive) {
         gameActive = false;
         
-        // スコア計算
         let whiteCount = 0;
         let blackCount = 0;
         stones.forEach(stone => {
@@ -554,7 +636,11 @@ function updateTimers() {
     const turnElapsed = Date.now() - turnStartTime;
     const turnRemaining = Math.max(0, 10000 - turnElapsed);
     const turnPercent = (turnRemaining / 10000) * 100;
-    document.getElementById('turnTimerFill').style.width = turnPercent + '%';
+    
+    const turnTimerFill = document.getElementById('turnTimerFill');
+    if (turnTimerFill) {
+        turnTimerFill.style.width = turnPercent + '%';
+    }
 
     // ターンタイムアウト
     if (turnRemaining === 0 && isMyTurn() && gameActive) {
@@ -565,13 +651,18 @@ function updateTimers() {
     if (isCharging) {
         const chargeTime = Date.now() - chargeStartTime;
         chargeLevel = Math.min(1, chargeTime / MAX_CHARGE_TIME);
-        document.getElementById('chargeFill').style.width = (chargeLevel * 100) + '%';
+        const chargeFill = document.getElementById('chargeFill');
+        if (chargeFill) {
+            chargeFill.style.width = (chargeLevel * 100) + '%';
+        }
     }
 }
 
 let lastPhysicsUpdate = 0;
 function animate() {
     requestAnimationFrame(animate);
+
+    if (!world || !renderer || !scene || !camera) return;
 
     // 物理シミュレーション
     world.step(1/60);
@@ -582,10 +673,9 @@ function animate() {
         stone.mesh.quaternion.copy(stone.body.quaternion);
     });
 
-    // 物理状態を定期的に送信（60フレームに1回）
+    // 物理状態を定期的に送信
     if (gameActive && Date.now() - lastPhysicsUpdate > 1000/60) {
         stones.forEach(stone => {
-            // 動いている石だけ送信
             const velocity = stone.body.velocity.length();
             if (velocity > 0.1) {
                 mySocket.emit('updatePhysics', {
@@ -620,3 +710,5 @@ function animate() {
 
     renderer.render(scene, camera);
 }
+
+console.log('board.js fully loaded');
