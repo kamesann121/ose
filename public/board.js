@@ -449,11 +449,35 @@ function setupSocketListeners() {
         const won = data.winner === mySocket.id;
         
         setTimeout(() => {
-            alert(won ? 'You won!' : 'You lost!');
-            localStorage.removeItem('currentMatch');
-            location.reload();
+            alert(won ? 'You won!' : (data.reason === 'surrender' ? 'Opponent gave up!' : 'You lost!'));
+            
+            // ロビーに戻る
+            if (window.returnToLobby) {
+                window.returnToLobby();
+            } else {
+                localStorage.removeItem('currentMatch');
+                location.reload();
+            }
         }, 500);
     });
+
+    // 相手切断
+    mySocket.on('opponentDisconnected', () => {
+        gameActive = false;
+        
+        setTimeout(() => {
+            alert('Opponent disconnected.');
+            
+            // ロビーに戻る
+            if (window.returnToLobby) {
+                window.returnToLobby();
+            } else {
+                localStorage.removeItem('currentMatch');
+                location.reload();
+            }
+        }, 500);
+    });
+}
 
     // 相手切断
     mySocket.on('opponentDisconnected', () => {
